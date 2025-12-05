@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Messenger с приватными сообщениями</title>
+    <style>
+        /* Основные стили */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        /* Окно мессенджера */
+        .messenger {
+            width: 100%;
+            max-width: 1000px;
+            height: 90vh;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Боковая панель - контакты */
+        .sidebar {
+            width: 300px;
+            background: #2c3e50;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Основное окно чата */
+        .chat-window {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Вкладки чатов */
+        .chat-tabs {
+            display: flex;
+            background: #34495e;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .chat-tab {
+            padding: 15px 20px;
+            background: transparent;
+            border: none;
+            color: rgba(255,255,255,0.7);
+            cursor: pointer;
+            font-size: 14px;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .chat-tab.active {
+            color: white;
+            background: rgba(255,255,255,0.1);
+            border-bottom-color: #3498db;
+        }
+
+        .chat-tab .unread-count {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #e74c3c;
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            min-width: 15px;
+            text-align: center;
+        }
+
+        /* Поиск контактов */
+        .search-box {
+            padding: 20px;
+            background: #2c3e50;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px 15px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 14px;
+        }
+
+        .search-box input::placeholder {
+            color: rgba(255,255,255,0.5);
+        }
+
+        /* Список контактов */
+        .contacts-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 0;
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            cursor: pointer;
+            transition: background 0.3s;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .contact-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .contact-item.active {
+            background: rgba(52, 152, 219, 0.2);
+        }
+
+        .contact-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #3498db;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            margin-right: 12px;
+        }
+
+        .contact-info {
+            flex: 1;
+        }
+
+        .contact-name {
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+
+        .contact-last-message {
+            font-size: 12px;
+            opacity: 0.7;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 180px;
+        }
+
+        .contact-meta {
+            text-align: right;
+            font-size: 11px;
+            opacity: 0.7;
+        }
+
+        .contact-unread {
+            background: #e74c3c;
+            color: white;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-top: 5px;
+        }
+
+        /* Шапка чата */
+        .chat-header {
+            background: #3498db;
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-header-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chat-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: #3498db;
+        }
+
+        .chat-title h3 {
+            font-size: 16px;
+            margin-bottom: 3px;
+        }
+
+        .chat-subtitle {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+
+        /* Окно сообщений */
+        .messages-container {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background: #f8f9fa;
+        }
+
+        /* Стили сообщений */
+        .message {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            position: relative;
+            word-wrap: break-word;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .my-message {
+            background: #3498db;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 5px;
+        }
+
+        .their-message {
+            background: white;
+            color: #2c3e50;
+            align-self: flex-start;
+            border-bottom-left-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .message-sender {
+            font-weight: bold;
+            font-size: 13px;
+        }
+
+        .message-time {
+            font-size: 11px;
+            opacity: 0.7;
+        }
+
+        .message-text {
+            line-height: 1.4;
+        }
+
+        /* Поле ввода */
+        .input-area {
+            padding: 20px;
+            border-top: 1px solid #eee;
+            background: white;
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 10px;
+        }
+
+        #message-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        #message-input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .send-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .send-btn:hover {
+            background: #2980b9;
+        }
+
+        /* Индикатор набора */
+        .typing-indicator {
+            padding: 10px 20px;
+            font-size: 14px;
+            color: #7f8c8d;
+            font-style: italic;
+            height: 20px;
+        }
+
+        /* Окно входа */
+        .login-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .login-box h2 {
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .login-form input {
+            width: 100%;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .login-form input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .login-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 15px;
+            width: 100%;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        /* Системные сообщения */
+        .system-message {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 13px;
+            margin: 10px 0;
+            padding: 5px;
+        }
+
+        .date-divider {
+            text-align: center;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .date-divider::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 100%;
+            height: 1px;
+            background: #e0e0e0;
+        }
+
+        .date-divider span {
+            background: #f8f9fa;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #7f8c8d;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Статус онлайн */
+        .online-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #2ecc71;
+            display: inline-block;
+            margin-right: 5px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        /* Кнопка нового сообщения */
+        .new-chat-btn {
+            background: #2ecc71;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px 20px;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .new-chat-btn:hover {
+            background: #27ae60;
+        }
+
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            .messenger {
+                flex-direction: column;
+                height: 95vh;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: 300px;
+            }
+            
+            .chat-tabs {
+                overflow-x: auto;
+            }
+            
+            .message {
+                max-width: 85%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Экран входа -->
+    <div id="login-screen" class="login-screen">
+        <div class="login-box">
+            <h2>💬 Приватный мессенджер</h2>
+            <p>Создайте профиль для начала общения</p>
+            
+            <form id="login-form" class="login-form">
+                <input 
+                    type="text" 
+                    id="username-input" 
+                    placeholder="Ваше имя"
+                    required
+                    autocomplete="off"
+                >
+                <input 
+                    type="text" 
+                    id="avatar-input" 
+                    placeholder="Эмодзи для аватара"
+                    value="👤"
+                    maxlength="2"
+                >
+                <button type="submit" class="login-btn">Войти в мессенджер</button>
+            </form>
+            
+            <div style="margin-top: 20px; font-size: 14px; color: #95a5a6;">
+                ✨ После входа вы сможете писать другим пользователям
+            </div>
+        </div>
+    </div>
+
+    <!-- Основное окно мессенджера -->
+    <div id="messenger" class="messenger" style="display: none;">
+        <!-- Боковая панель с контактами -->
+        <div class="sidebar">
+            <!-- Вкладки чатов -->
+            <div class="chat-tabs">
+                <button class="chat-tab active" data-chat-type="all" onclick="switchChat('all')">
+                    Все чаты
+                </button>
+                <button class="chat-tab" data-chat-type="online" onclick="switchChat('online')">
+                    Онлайн
+                </button>
+                <button class="chat-tab" data-chat-type="unread" onclick="switchChat('unread')">
+                    Непрочитанные
+                </button>
+            </div>
+
+            <!-- Поиск контактов -->
+            <div class="search-box">
+                <input 
+                    type="text" 
+                    id="contact-search" 
+                    placeholder="Поиск контактов..."
+                    autocomplete="off"
+                >
+            </div>
+
+            <!-- Список контактов -->
+            <div class="contacts-list" id="contacts-list">
+                <!-- Контакты будут добавляться здесь -->
+            </div>
+
+            <!-- Кнопка нового чата -->
+            <button class="new-chat-btn" onclick="startNewChat()">
+                + Новый чат
+            </button>
+        </div>
+
+        <!-- Окно активного чата -->
+        <div class="chat-window">
+            <!-- Шапка активного чата -->
+            <div class="chat-header" id="chat-header">
+                <div class="chat-header-info">
+                    <div class="chat-avatar" id="current-chat-avatar">👥</div>
+                    <div class="chat-title">
+                        <h3 id="current-chat-name">Общий чат</h3>
+                        <div class="chat-subtitle" id="current-chat-status">
+                            <span class="online-status"></span> 
+                            <span id="online-users-count">1</span> пользователь онлайн
+                        </div>
+                    </div>
+                </div>
+                <div style="font-size: 14px;">
+                    <span id="connection-status">🟢 Подключен</span>
+                </div>
+            </div>
+
+            <!-- Сообщения -->
+            <div class="messages-container" id="messages-container">
+                <div class="system-message" id="welcome-message">
+                    Выберите чат для начала общения
+                </div>
+                <!-- Сообщения будут добавляться здесь -->
+            </div>
+
+            <!-- Индикатор набора текста -->
+            <div class="typing-indicator" id="typing-indicator"></div>
+
+            <!-- Поле ввода сообщения -->
+            <div class="input-area">
+                <div class="input-wrapper">
+                    <input 
+                        type="text" 
+                        id="message-input" 
+                        placeholder="Введите сообщение..."
+                        autocomplete="off"
+                        disabled
+                    >
+                    <button id="send-btn" class="send-btn" disabled>➤</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Данные приложения
+        let currentUser = null;
+        let activeChat = null; // Текущий активный чат
+        let chats = new Map(); // Все чаты: chatId -> { messages: [], users: [], lastMessage: Date }
+        let contacts = new Map(); // Все контакты: userId -> { user data }
+        let onlineUsers = new Set(); // Онлайн пользователи
+        let typingTimeout = null;
+
+        // DOM элементы
+        const loginScreen = document.getElementById('login-screen');
+        const messenger = document.getElementById('messenger');
+        const loginForm = document.getElementById('login-form');
+        const usernameInput = document.getElementById('username-input');
+        const avatarInput = document.getElementById('avatar-input');
+        const contactsList = document.getElementById('contacts-list');
+        const messagesContainer = document.getElementById('messages-container');
+        const messageInput = document.getElementById('message-input');
+        const sendBtn = document.getElementById('send-btn');
+        const chatHeader = document.getElementById('chat-header');
+        const currentChatName = document.getElementById('current-chat-name');
+        const currentChatAvatar = document.getElementById('current-chat-avatar');
+        const currentChatStatus = document.getElementById('current-chat-status');
+        const typingIndicator = document.getElementById('typing-indicator');
+        const welcomeMessage = document.getElementById('welcome-message');
+        const contactSearch = document.getElementById('contact-search');
+        const onlineUsersCount = document.getElementById('online-users-count');
+
+        // Генерация ID
+        function generateId() {
+            return 'id_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        // Генерация цвета для аватара
+        function getAvatarColor(name) {
+            const colors = [
+                '#3498db', '#2ecc71', '#e74c3c', '#f39c12', 
+                '#9b59b6', '#1abc9c', '#d35400', '#c0392b'
+            ];
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) {
+                hash = name.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return colors[Math.abs(hash) % colors.length];
+        }
+
+        // Вход в систему
+        loginForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = usernameInput.value.trim();
+            const avatar = avatarInput.value.trim() || '👤';
+            
+            if (username.length < 2) {
+                alert('Имя должно содержать минимум 2 символа');
+                return;
+            }
+            
+            // Создаем пользователя
+            currentUser = {
+                id: generateId(),
+                username: username,
+                avatar: avatar,
+                color: getAvatarColor(username),
+                online: true
+            };
+            
+            // Сохраняем в localStorage
+            localStorage.setItem('messenger_user', JSON.stringify(currentUser));
+            
+            // Инициализируем чаты
+            initializeChats();
+            
+            // Переключаем экраны
+            loginScreen.style.display = 'none';
+            messenger.style.display = 'flex';
+            
+            // Фокусируемся на поиске контактов
+            contactSearch.focus();
+            
+            // Запускаем демо-данные
+            setTimeout(loadDemoContacts, 1000);
+        });
+
+        // Инициализация чатов
+        function initializeChats() {
+            // Создаем общий чат
+            const generalChatId = 'general';
+            chats.set(generalChatId, {
+                id: generalChatId,
+                name: 'Общий чат',
+                avatar: '👥',
+                type: 'group',
+                users: [currentUser.id],
+                messages: [],
+                unread: 0,
+                lastMessage: null
+            });
+            
+            // Добавляем себя в контакты
+            contacts.set(currentUser.id, currentUser);
+        }
+
+        // Загрузка демо-контактов
+        function loadDemoContacts() {
+            const demoUsers = [
+                { username: 'Анна', avatar: '👩', status: 'online' },
+                { username: 'Максим', avatar: '👨', status: 'online' },
+                { username: 'Ольга', avatar: '👩‍💼', status: 'away' },
+                { username: 'Дмитрий', avatar: '👨‍💻', status: 'offline' },
+                { username: 'Ирина', avatar: '👩‍🎨', status: 'online' },
+                { username: 'Сергей', avatar: '👨‍🚀', status: 'offline' },
+                { username: 'Екатерина', avatar: '👸', status: 'online' },
+                { username: 'Александр', avatar: '🤵', status: 'away' }
+            ];
+            
+            demoUsers.forEach(user => {
+                const userId = generateId();
+                const contact = {
+                    id: userId,
+                    username: user.username,
+                    avatar: user.avatar,
+                    color: getAvatarColor(user.username),
+                    status: user.status,
+                    online: user.status === 'online' || user.status === 'away',
+                    lastSeen: new Date(Date.now() - Math.random() * 86400000).toISOString()
+                };
+                
+                contacts.set(userId, contact);
+                
+                if (user.status === 'online') {
+                    onlineUsers.add(userId);
+                }
+            });
+            
+            updateContactsList();
+            updateOnlineCount();
+            
+            // Добавляем демо-сообщения в общий чат
+            addDemoMessages();
+        }
+
+        // Добавление демо-сообщений
+        function addDemoMessages() {
+            const generalChat = chats.get('general');
+            const demoMessages = [
+                { text: 'Привет всем! Как дела?', sender: Array.from(contacts.keys())[1] },
+                { text: 'Привет! Всё отлично, тестируем новый мессенджер', sender: Array.from(contacts.keys())[2] },
+                { text: 'Круто! Можно писать приватные сообщения?', sender: currentUser.id },
+                { text: 'Да, кликните на любого пользователя слева', sender: Array.from(contacts.keys())[0] },
+                { text: 'Отличная работа! 🎉', sender: Array.from(contacts.keys())[4] }
+            ];
+            
+            demoMessages.forEach((msg, index) => {
+                setTimeout(() => {
+                    const message = createMessage(msg.text, msg.sender, 'general');
+                    addMessageToChat('general', message);
+                    
+                    // Если открыт общий чат, показываем сообщение
+                    if (activeChat === 'general') {
+                        displayMessage(message);
+                    } else {
+                        // Увеличиваем счетчик непрочитанных
+                        generalChat.unread++;
+                        updateContactsList();
+                    }
+                }, 1000 + index * 1500);
+            });
+        }
+
+        // Создание сообщения
+        function createMessage(text, senderId, chatId) {
+            const sender = contacts.get(senderId) || currentUser;
+            return {
+                id: generateId(),
+                text: text,
+                senderId: senderId,
+                senderName: sender.username,
+                senderAvatar: sender.avatar,
+                chatId: chatId,
+                timestamp: new Date().toISOString(),
+                read: false,
+                type: senderId === currentUser.id ? 'outgoing' : 'incoming'
+            };
+        }
+
+        // Добавление сообщения в чат
+        function addMessageToChat(chatId, message) {
+            const chat = chats.get(chatId);
+            if (!chat) return;
+            
+            chat.messages.push(message);
+            chat.lastMessage = new Date();
+            
+            // Если это не активный чат, увеличиваем счетчик непрочитанных
+            if (chatId !== activeChat && message.senderId !== currentUser.id) {
+                chat.unread = (chat.unread || 0) + 1;
+            }
+            
+            // Обновляем список контактов
+            updateContactsList();
+            
+            // Сохраняем в localStorage
+            saveChatsToStorage();
+        }
+
+        // Отображение сообщения в UI
+        function displayMessage(message) {
+            const messageElement = document.createElement('div');
+            
+            if (message.senderId === currentUser.id) {
+                messageElement.className = 'message my-message';
+            } else {
+                messageElement.className = 'message their-message';
+                
+                // Устанавливаем цвет аватара отправителя
+                const sender = contacts.get(message.senderId);
+                if (sender) {
+                    messageElement.style.borderLeft = `4px solid ${sender.color}`;
+                }
+            }
+            
+            const time = new Date(message.timestamp).toLocaleTimeString([], { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            
+            messageElement.innerHTML = `
+                <div class="message-header">
+                    <span class="message-sender">${message.senderName}</span>
+                    <span class="message-time">${time}</span>
+                </div>
+                <div class="message-text">${message.text}</div>
+            `;
+            
+            messagesContainer.appendChild(messageElement);
+            scrollToBottom();
+        }
+
+        // Отправка сообщения
+        function sendMessage() {
+            const text = messageInput.value.trim();
+            if (!text || !activeChat) return;
+            
+            // Создаем сообщение
+            const message = createMessage(text, currentUser.id, activeChat);
+            
+            // Добавляем в чат
+            addMessageToChat(activeChat, message);
+            
+            // Отображаем в UI
+            displayMessage(message);
+            
+            // Очищаем поле ввода
+            messageInput.value = '';
+            
+            // Если это приватный чат, отправляем "симуляцию" ответа
+            if (activeChat !== 'general' && activeChat !== 'new') {
+                simulateReply(activeChat);
+            }
+            
+            // Сбрасываем индикатор набора
+            clearTyping();
+        }
+
+        // Симуляция ответа (для демо)
+        function simulateReply(chatId) {
+            const chat = chats.get(chatId);
+            if (!chat || chat.type !== 'private') return;
+            
+            // Находим собеседника
+            const otherUserId = chat.users.find(id => id !== currentUser.id);
+            const otherUser = contacts.get(otherUserId);
+            if (!otherUser || !otherUser.online) return;
+            
+            // Ждем 1-3 секунды перед ответом
+            const delay = 1000 + Math.random() * 2000;
+            
+            setTimeout(() => {
+                // Показываем индикатор набора
+                showTyping(otherUser.username);
+                
+                // Еще через 1-2 секунды отправляем ответ
+                setTimeout(() => {
+                    const replies = [
+                        'Привет! Как дела?',
+                        'Получил твое сообщение 👍',
+                        'Спасибо! Я тоже рад тебя видеть',
+                        'Давай обсудим это позже?',
+                        'Отличная новость! 🎉',
+                        'Я как раз думал об этом',
+                        'Можешь рассказать подробнее?',
+                        'Согласен с тобой!'
+                    ];
+                    
+                    const randomReply = replies[Math.floor(Math.random() * replies.length)];
+                    const replyMessage = createMessage(randomReply, otherUserId, chatId);
+                    
+                    addMessageToChat(chatId, replyMessage);
+                    
+                    if (activeChat === chatId) {
+                        displayMessage(replyMessage);
+                    }
+                    
+                    clearTyping();
+                }, 1000 + Math.random() * 1000);
+            }, delay);
+        }
+
+        // Показать индикатор набора
+        function showTyping(username) {
+            typingIndicator.textContent = `${username} печатает...`;
+            
+            if (typingTimeout) {
+                clearTimeout(typingTimeout);
+            }
+            
+            typingTimeout = setTimeout(() => {
+                typingIndicator.textContent = '';
+            }, 3000);
+        }
+
+        // Очистить индикатор набора
+        function clearTyping() {
+            typingIndicator.textContent = '';
+            if (typingTimeout) {
+                clearTimeout(typingTimeout);
+            }
+        }
+
+        // Переключение между чатами
+        function switchChat(chatId) {
+            if (chatId === activeChat) return;
+            
+            // Сохраняем предыдущий активный чат
+            const previousActiveChat = activeChat;
+            
+            // Устанавливаем новый активный чат
+            activeChat = chatId;
+            const chat = chats.get(chatId);
+            
+            if (!chat) {
+                welcomeMessage.style.display = 'block';
+                messageInput.disabled = true;
+                sendBtn.disabled = true;
+                return;
+            }
+            
+            // Скрываем приветственное сообщение
+            welcomeMessage.style.display = 'none';
+            
+            // Обновляем заголовок чата
+            currentChatName.textContent = chat.name;
+            currentChatAvatar.textContent = chat.avatar;
+            currentChatAvatar.style.background = chat.color || '#3498db';
+            
+            // Обновляем статус
+            if (chat.type === 'group') {
+                currentChatStatus.innerHTML = `<span class="online-status"></span> ${chat.users.length} участников`;
+            } else if (chat.type === 'private') {
+                const otherUserId = chat.users.find(id => id !== currentUser.id);
+                const otherUser = contacts.get(otherUserId);
+                if (otherUser) {
+                    const status = otherUser.online ? 'online' : 'offline';
+                    const statusText = otherUser.online ? 'онлайн' : `был(а) в сети ${formatLastSeen(otherUser.lastSeen)}`;
+                    currentChatStatus.innerHTML = `<span class="online-status"></span> ${statusText}`;
+                }
+            }
+            
+            // Очищаем сообщения
+            messagesContainer.innerHTML = '';
+            
+            // Загружаем сообщения чата
+            if (chat.messages.length > 0) {
+                // Добавляем разделитель даты
+                const firstDate = new Date(chat.messages[0].timestamp).toLocaleDateString();
+                addDateDivider(firstDate);
+                
+                // Отображаем все сообщения
+                chat.messages.forEach(message => {
+                    displayMessage(message);
+                });
+            } else {
+                // Если сообщений нет, показываем приветствие
+                const greeting = document.createElement('div');
+                greeting.className = 'system-message';
+                greeting.textContent = chat.type === 'private' 
+                    ? `Начните общение с ${chat.name}` 
+                    : 'Начните общение в общем чате';
+                messagesContainer.appendChild(greeting);
+            }
+            
+            // Сбрасываем счетчик непрочитанных
+            chat.unread = 0;
+            
+            // Обновляем список контактов
+            updateContactsList();
+            
+            // Активируем поле ввода
+            messageInput.disabled = false;
+            sendBtn.disabled = false;
+            messageInput.focus();
+            
+            // Прокручиваем вниз
+            scrollToBottom();
+            
+            // Обновляем активный контакт в списке
+            updateActiveContact(chatId);
+        }
+
+        // Добавление разделителя даты
+        function addDateDivider(dateString) {
+            const divider = document.createElement('div');
+            divider.className = 'date-divider';
+            divider.innerHTML = `<span>${dateString}</span>`;
+            messagesContainer.appendChild(divider);
+        }
+
+        // Форматирование времени последнего посещения
+        function formatLastSeen(timestamp) {
+            if (!timestamp) return 'давно';
+            
+            const lastSeen = new Date(timestamp);
+            const now = new Date();
+            const diffMs = now - lastSeen;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            
+            if (diffMins < 1) return 'только что';
+            if (diffMins < 60) return `${diffMins} мин. назад`;
+            if (diffHours < 24) return `${diffHours} ч. назад`;
+            if (diffDays === 1) return 'вчера';
+            if (diffDays < 7) return `${diffDays} дн. назад`;
+            return lastSeen.toLocaleDateString();
+        }
+
+        // Обновление списка контактов
+        function updateContactsList() {
+            contactsList.innerHTML = '';
+            
+            // Сначала показываем групповые чаты
+            Array.from(chats.values())
+                .filter(chat => chat.type === 'group')
+                .forEach(chat => {
+                    const lastMessage = chat.messages[chat.messages.length - 1];
+                    const contactElement = createContactElement(chat, lastMessage);
+                    contactsList.appendChild(contactElement);
+                });
+            
+            // Затем показываем приватные чаты
+            Array.from(chats.values())
+                .filter(chat => chat.type === 'private')
+                .forEach(chat => {
+                    const otherUserId = chat.users.find(id => id !== currentUser.id);
+                    const otherUser = contacts.get(otherUserId);
+                    if (otherUser) {
+                        const lastMessage = chat.messages[chat.messages.length - 1];
+                        const contactElement = createContactElement(chat, lastMessage, otherUser);
+                        contactsList.appendChild(contactElement);
+                    }
+                });
+        }
+
+        // Создание элемента контакта
+        function createContactElement(chat, lastMessage, user = null) {
+            const element = document.createElement('div');
+            element.className = `contact-item ${chat.id === activeChat ? 'active' : ''}`;
+            element.onclick = () => switchChat(chat.id);
+            
+            const avatar = user ? user.avatar : chat.avatar;
+            const name = user ? user.username : chat.name;
+            const color = user ? user.color : chat.color;
+            const status = user ? (user.online ? 'online' : 'offline') : 'group';
+            const lastMessageText = lastMessage ? 
+                `${lastMessage.senderName}: ${lastMessage.text}` : 
+                'Нет сообщений';
+            const time = lastMessage ? 
+                new Date(lastMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
+                '';
+            
+            element.innerHTML = `
+                <div class="contact-avatar" style="background: ${color}">${avatar}</div>
+                <div class="contact-info">
+                    <div class="contact-name">${name}</div>
+                    <div class="contact-last-message">${lastMessageText}</div>
+                    ${chat.unread > 0 ? `<div class="contact-unread">${chat.unread}</div>` : ''}
+                </div>
+                <div class="contact-meta">
+                    <div>${time}</div>
+                    ${status === 'online' ? '<div style="color: #2ecc71;">●</div>' : ''}
+                </div>
+            `;
+            
+            return element;
+        }
+
+        // Обновление активного контакта
+        function updateActiveContact(chatId) {
+            const allContacts = contactsList.querySelectorAll('.contact-item');
+            allContacts.forEach(contact => {
+                contact.classList.remove('active');
+            });
+            
+            const activeContact = contactsList.querySelector(`[onclick*="${chatId}"]`);
+            if (activeContact) {
+                activeContact.classList.add('active');
+            }
+        }
+
+        // Начать новый чат
+        function startNewChat() {
+            // Показываем всех пользователей для выбора
+            const usersList = Array.from(contacts.values())
+                .filter(user => user.id !== currentUser.id)
+                .map(user => {
+                    return `
+                        <div class="contact-item" onclick="createPrivateChat('${user.id}')">
+                            <div class="contact-avatar" style="background: ${user.color}">${user.avatar}</div>
+                            <div class="contact-info">
+                                <div class="contact-name">${user.username}</div>
+                                <div class="contact-last-message">${user.online ? 'В сети' : 'Не в сети'}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            
+            // Создаем временный чат для выбора
+            const newChatId = 'new';
+            chats.set(newChatId, {
+                id: newChatId,
+                name: 'Новый чат',
+                avatar: '➕',
+                type: 'selection',
+                users: [currentUser.id],
+                messages: [],
+                unread: 0
+            });
+            
+            // Переключаемся на "чат выбора"
+            activeChat = newChatId;
+            currentChatName.textContent = 'Новый чат';
+            currentChatAvatar.textContent = '➕';
+            currentChatStatus.innerHTML = 'Выберите пользователя для начала общения';
+            
+            // Очищаем сообщения и показываем список пользователей
+            messagesContainer.innerHTML = `
+                <div style="padding: 20px;">
+                    <h3 style="margin-bottom: 15px; color: #2c3e50;">Выберите собеседника:</h3>
+                    <div id="new-chat-users">
+                        ${usersList}
+                    </div>
+                </div>
+            `;
+            
+            // Деактивируем поле ввода
+            messageInput.disabled = true;
+            sendBtn.disabled = true;
+        }
+
+        // Создать приватный чат
+        function createPrivateChat(userId) {
+            const user = contacts.get(userId);
+            if (!user) return;
+            
+            // Проверяем, есть ли уже чат с этим пользователем
+            let existingChatId = null;
+            for (const [chatId, chat] of chats) {
+                if (chat.type === 'private' && chat.users.includes(userId)) {
+                    existingChatId = chatId;
+                    break;
+                }
+            }
+            
+            if (existingChatId) {
+                // Переключаемся на существующий чат
+                switchChat(existingChatId);
+            } else {
+                // Создаем новый приватный чат
+                const chatId = `private_${currentUser.id}_${userId}`;
+                const chat = {
+                    id: chatId,
+                    name: user.username,
+                    avatar: user.avatar,
+                    color: user.color,
+                    type: 'private',
+                    users: [currentUser.id, userId],
+                    messages: [],
+                    unread: 0,
+                    lastMessage: null
+                };
+                
+                chats.set(chatId, chat);
+                
+                // Переключаемся на новый чат
+                switchChat(chatId);
+                
+                // Добавляем приветственное сообщение
+                setTimeout(() => {
+                    const welcomeMsg = createMessage(
+                        `Привет! Я создал(а) этот чат для приватного общения.`,
+                        currentUser.id,
+                        chatId
+                    );
+                    addMessageToChat(chatId, welcomeMsg);
+                    displayMessage(welcomeMsg);
+                }, 500);
+            }
+        }
+
+        // Переключение вкладок чатов
+        function switchChat(filter) {
+            // Это упрощенная версия для вкладок "Все чаты", "Онлайн", "Непрочитанные"
+            // В реальном приложении здесь была бы фильтрация списка контактов
+            const tabs = document.querySelectorAll('.chat-tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            
+            const activeTab = document.querySelector(`[data-chat-type="${filter}"]`);
+            if (activeTab) {
+                activeTab.classList.add('active');
+            }
+        }
+
+        // Прокрутка вниз
+        function scrollToBottom() {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Обновление счетчика онлайн
+        function updateOnlineCount() {
+            onlineUsersCount.textContent = onlineUsers.size + 1; // + текущий пользователь
+        }
+
+        // Сохранение чатов в localStorage
+        function saveChatsToStorage() {
+            const data = {
+                chats: Array.from(chats.entries()),
+                contacts: Array.from(contacts.entries())
+            };
+            localStorage.setItem('messenger_data', JSON.stringify(data));
+        }
+
+        // Загрузка чатов из localStorage
+        function loadFromStorage() {
+            const saved = localStorage.getItem('messenger_data');
+            if (saved) {
+                const data = JSON.parse(saved);
+                chats = new Map(data.chats || []);
+                contacts = new Map(data.contacts || []);
+                return true;
+            }
+            return false;
+        }
+
+        // Обработчики событий
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        sendBtn.addEventListener('click', sendMessage);
+
+        messageInput.addEventListener('input', function() {
+            if (typingTimeout) {
+                clearTimeout(typingTimeout);
+            }
+            typingTimeout = setTimeout(clearTyping, 2000);
+        });
+
+        // Поиск контактов
+        contactSearch.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const contactItems = contactsList.querySelectorAll('.contact-item');
+            
+            contactItems.forEach(item => {
+                const name = item.querySelector('.contact-name').textContent.toLowerCase();
+                item.style.display = name.includes(searchTerm) ? 'flex' : 'none';
+            });
+        });
+
+        // Загрузка при старте
+        window.addEventListener('load', function() {
+            // Проверяем сохраненного пользователя
+            const savedUser = localStorage.getItem('messenger_user');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                
+                // Загружаем сохраненные данные
+                loadFromStorage();
+                
+                // Входим в систему
+                loginScreen.style.display = 'none';
+                messenger.style.display = 'flex';
+                
+                // Загружаем демо-данные
+                setTimeout(loadDemoContacts, 500);
+            }
+            
+            // Автофокус на поле ввода имени
+            usernameInput.focus();
+        });
+
+        // Демонстрация изменения статуса онлайн
+        setInterval(() => {
+            // Случайным образом меняем статусы пользователей
+            contacts.forEach(user => {
+                if (user.id !== currentUser.id) {
+                    if (Math.random() > 0.7) {
+                        user.online = !user.online;
+                        user.lastSeen = new Date().toISOString();
+                        
+                        if (user.online) {
+                            onlineUsers.add(user.id);
+                        } else {
+                            onlineUsers.delete(user.id);
+                        }
+                    }
+                }
+            });
+            
+            updateContactsList();
+            updateOnlineCount();
+            
+            // Обновляем статус соединения
+            const statuses = ['🟢 Подключен', '🟡 Синхронизация...', '🟢 Онлайн'];
+            const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
+            document.getElementById('connection-status').textContent = randomStatus;
+        }, 10000);
+    </script>
+</body>
+</html>
